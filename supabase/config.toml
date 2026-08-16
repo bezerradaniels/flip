@@ -1,0 +1,12 @@
+project_id = "flip-catalogo"
+
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+major_version = 17
+
+[functions.submit-order]
+verify_jwt = false

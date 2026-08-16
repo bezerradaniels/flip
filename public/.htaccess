@@ -1,0 +1,18 @@
+Options -MultiViews
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Mantém arquivos e diretórios reais acessíveis normalmente.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Entrega o React para /admin, /produto/*, /pedido e demais rotas.
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Fallback adicional para servidores que tratam a rota antes do mod_rewrite.
+ErrorDocument 404 /index.html
