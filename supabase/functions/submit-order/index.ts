@@ -1,5 +1,6 @@
 import { withSupabase } from 'npm:@supabase/server@1.4.1'
 import { Resend } from 'npm:resend@4.1.2'
+import { renderOrderEmail } from './email.ts'
 
 type OrderInput = {
   customerName?: string
@@ -16,13 +17,6 @@ const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean)
-
-const escapeHtml = (value: unknown) => String(value ?? '')
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#039;')
 
 function corsHeaders(origin: string | null) {
   const allowedOrigin = !allowedOrigins.length || (origin && allowedOrigins.includes(origin)) ? (origin || '*') : 'null'
@@ -75,21 +69,47 @@ export default {
 
       let notificationSent = false
       const resendKey = Deno.env.get('RESEND_API_KEY')
-      const notificationEmail = Deno.env.get('ORDER_NOTIFICATION_EMAIL')
+      const notificationEmails = (Deno.env.get('ORDER_NOTIFICATION_EMAIL') || '')
+        .split(',')
+        .map((email) => email.trim())
+        .filter(Boolean)
       const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
-      if (resendKey && notificationEmail && fromEmail) {
-        const resend = new Resend(resendKey)
-        const itemList = (order.items as Array<{ name: string; quantity: number; variantName?: string | null }>).map((item) => (
-          `<li>${item.quantity}x ${escapeHtml(item.name)}${item.variantName ? ` — ${escapeHtml(item.variantName)}` : ''}</li>`
-        )).join('')
-        const { error } = await resend.emails.send({
-          from: fromEmail,
-          to: [notificationEmail],
-          subject: `Novo pedido Flip #${String(order.orderId).slice(0, 8).toUpperCase()}`,
-          html: `<h1>Novo pedido</h1><p><b>Cliente:</b> ${escapeHtml(customerName)}<br><b>WhatsApp:</b> ${escapeHtml(customerPhone)}<br><b>Total:</b> R$ ${escapeHtml(order.total)}</p><ul>${itemList}</ul>`,
-        })
-        notificationSent = !error
-        if (error) console.error('Order email failed', error)
+      if (resendKey && notificationEmails.length && fromEmail) {
+        try {
+          const { data: settings } = await ctx.supabaseAdmin
+            .from('store_settings')
+            .select('name, primary_color, logo_url')
+            .maybeSingle()
+          const email = renderOrderEmail({
+            orderId: order.orderId,
+            createdAt: new Date(),
+            customerName,
+            customerPhone,
+            customerEmail: payload.customerEmail?.trim() || null,
+            deliveryMethod: payload.deliveryMethod?.trim() || null,
+            paymentMethod: payload.paymentMethod?.trim() || null,
+            couponCode: payload.couponCode?.trim().toUpperCase() || null,
+            note: payload.note?.trim() || null,
+            subtotal: order.subtotal,
+            discount: order.discount,
+            total: order.total,
+            items: order.items,
+            storeName: settings?.name || 'Flip',
+            primaryColor: settings?.primary_color || '#176b46',
+            logoUrl: settings?.logo_url || null,
+            adminUrl: origin ? `${origin}/admin` : null,
+          })
+          const { error } = await new Resend(resendKey).emails.send({
+            from: fromEmail,
+            to: notificationEmails,
+            replyTo: payload.customerEmail?.trim() || undefined,
+            ...email,
+          })
+          notificationSent = !error
+          if (error) console.error('Order email failed', error)
+        } catch (error) {
+          console.error('Order email failed', error)
+        }
       }
 
       return json({ ...order, notificationSent }, 201, origin)
