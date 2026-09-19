@@ -3,5 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  build: { sourcemap: true },
+  // Sem source maps no build: eles expõem o código-fonte quando publicados.
+  build: { sourcemap: false },
 })

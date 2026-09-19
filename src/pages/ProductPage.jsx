@@ -1,8 +1,11 @@
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Plus, Share2, ShoppingBag } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import Breadcrumbs from '../components/Breadcrumbs.jsx'
+import FaqList from '../components/FaqList.jsx'
 import { ProductGrid } from '../components/ProductGrid.jsx'
 import { getCartItemKey, useStore } from '../context/StoreContext.jsx'
+import { categoryPath, productPath } from '../seo/site.js'
 import { getProductPrice, money, onlyDigits } from '../utils/format.js'
 import { findVariantForSelection, getVariantAttributes, getVariationGroups, hasStructuredVariants } from '../utils/variants.js'
 import NotFoundPage from './NotFoundPage.jsx'
@@ -12,7 +15,9 @@ export default function ProductPage() {
   const { products, settings, loading, addToCart, cart, coupon, getDisplayPrice } = useStore()
   const product = products.find((item) => item.slug === slug || item.id === slug)
   const [imageIndex, setImageIndex] = useState(0)
-  const [selectedVariantId, setSelectedVariantId] = useState(null)
+  const [searchParams] = useSearchParams()
+  // ?variante=<id> vem dos links do Google Shopping e abre a variação anunciada.
+  const [selectedVariantId, setSelectedVariantId] = useState(() => searchParams.get('variante'))
   const [quantity, setQuantity] = useState(1)
 
   const selectedVariant = product?.variants?.find((item) => item.id === selectedVariantId) || product?.variants?.[0] || null
@@ -42,6 +47,11 @@ export default function ProductPage() {
 
   return (
     <main className="internal-page product-page">
+      <Breadcrumbs items={[
+        { name: 'Início', path: '/' },
+        ...(product.category.id ? [{ name: product.category.name, path: categoryPath(product.category) }] : []),
+        { name: product.name, path: productPath(product) },
+      ]} />
       <div className="page-toolbar">
         <Link to="/"><ArrowLeft size={18} /> Voltar ao catálogo</Link>
         <button type="button" onClick={share}><Share2 size={17} /> Compartilhar</button>
@@ -64,6 +74,7 @@ export default function ProductPage() {
             <h2>Descrição</h2>
             <p>{product.description || 'Mais informações em breve.'}</p>
           </div>
+          <FaqList faqs={product.faqs} title="Dúvidas sobre este produto" />
         </div>
 
         <div className="product-detail__info">
@@ -74,7 +85,6 @@ export default function ProductPage() {
           <div className="product-meta">
             <span><small>Marca</small><b>{product.brand || settings.name}</b></span>
             <span><small>Unidade</small><b>{product.unit}</b></span>
-            <span><small>Condição</small><b>{product.condition}</b></span>
           </div>
           {product.variants.length > 0 && (structuredVariants ? (
             <div className="product-options product-options--structured">

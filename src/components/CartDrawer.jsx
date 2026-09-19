@@ -21,7 +21,7 @@ export default function CartDrawer() {
   }, [drawerOpen, setDrawerOpen])
 
   return (
-    <div className={`drawer-layer ${drawerOpen ? 'is-open' : ''}`} aria-hidden={!drawerOpen} inert={!drawerOpen ? '' : undefined}>
+    <div className={`drawer-layer ${drawerOpen ? 'is-open' : ''}`} aria-hidden={!drawerOpen} inert={!drawerOpen}>
       <button className="drawer-backdrop" type="button" aria-label="Fechar sacolinha" onClick={() => setDrawerOpen(false)} />
       <aside className="cart-drawer" aria-label="Sua sacolinha">
         <div className="cart-drawer__head">

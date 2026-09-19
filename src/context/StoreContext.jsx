@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { demoCategories, demoProducts, demoStore } from '../data/demo.js'
+import { isSupabaseConfigured } from '../lib/supabase.js'
 import { loadCatalog, validateCoupon } from '../services/catalog.js'
 import { calculateCouponDiscount, getDiscountedProductPrice, getProductPrice } from '../utils/format.js'
 
 const StoreContext = createContext(null)
 const CART_KEY = 'flip-cart-v1'
 const COUPON_KEY = 'flip-coupon-v1'
+const CATALOG_KEY = 'flip-catalog-v1'
 
 export function getCartItemKey(product, selectedVariant = null) {
   return `${product.id}:${selectedVariant?.id || 'default'}`
@@ -31,21 +33,50 @@ function readCoupon() {
   }
 }
 
-export function StoreProvider({ children }) {
-  const [settings, setSettings] = useState(demoStore)
-  const [products, setProducts] = useState(demoProducts)
-  const [categories, setCategories] = useState(demoCategories)
-  const [mode, setMode] = useState('demo')
-  const [loading, setLoading] = useState(true)
+// Último catálogo carregado do Supabase. Evita mostrar os mockups de demonstração
+// enquanto o catálogo real ainda está chegando.
+function readCachedCatalog() {
+  try {
+    const value = JSON.parse(localStorage.getItem(CATALOG_KEY) || 'null')
+    return value?.settings && Array.isArray(value.products) && Array.isArray(value.categories) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedCatalog(catalog) {
+  try {
+    localStorage.setItem(CATALOG_KEY, JSON.stringify(catalog))
+  } catch { /* armazenamento indisponível ou cheio */ }
+}
+
+function initialCatalog(preloaded) {
+  if (preloaded) return { ...preloaded, mode: 'supabase', cached: true }
+  if (!isSupabaseConfigured) return { settings: demoStore, products: demoProducts, categories: demoCategories, mode: 'demo', cached: false }
+  const cached = readCachedCatalog()
+  if (cached) return { ...cached, mode: 'supabase', cached: true }
+  return { settings: { ...demoStore, hero_image_url: null }, products: [], categories: [], mode: 'supabase', cached: false }
+}
+
+// preloaded: catálogo embutido no HTML gerado no build. Nesse caso a página já
+// chega pronta e o React só "hidrata"; carrinho e cupom (que vivem no navegador)
+// são lidos depois, para o primeiro render ser igual ao HTML.
+export function StoreProvider({ children, preloaded = null }) {
+  const [initial] = useState(() => initialCatalog(preloaded))
+  const [settings, setSettings] = useState(initial.settings)
+  const [products, setProducts] = useState(initial.products)
+  const [categories, setCategories] = useState(initial.categories)
+  const [mode, setMode] = useState(initial.mode)
+  const [loading, setLoading] = useState(!initial.cached)
   const [loadError, setLoadError] = useState(null)
-  const [cart, setCart] = useState(readCart)
+  const [cart, setCart] = useState(() => (preloaded ? [] : readCart()))
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [coupon, setCoupon] = useState(readCoupon)
+  const [coupon, setCoupon] = useState(() => (preloaded ? null : readCoupon()))
+  const [browserStateReady, setBrowserStateReady] = useState(!preloaded)
   const [couponModalOpen, setCouponModalOpen] = useState(false)
   const [couponLoading, setCouponLoading] = useState(false)
 
   const refreshCatalog = async () => {
-    setLoading(true)
     setLoadError(null)
     try {
       const result = await loadCatalog()
@@ -53,31 +84,41 @@ export function StoreProvider({ children }) {
       setProducts(result.products)
       setCategories(result.categories)
       setMode(result.mode)
+      if (result.mode === 'supabase') {
+        writeCachedCatalog({ settings: result.settings, products: result.products, categories: result.categories })
+      }
     } catch (error) {
-      setSettings(demoStore)
-      setProducts(demoProducts)
-      setCategories(demoCategories)
-      setMode('demo')
+      // Mantém o que já está na tela (catálogo guardado) em vez de trocar por mockups.
       setLoadError(error.message || 'Não foi possível carregar o catálogo.')
+      setSettings((current) => (current.hero_image_url ? current : { ...current, hero_image_url: demoStore.hero_image_url }))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => { refreshCatalog() }, [])
-  useEffect(() => { localStorage.setItem(CART_KEY, JSON.stringify(cart)) }, [cart])
   useEffect(() => {
+    if (browserStateReady) return
+    setCart(readCart())
+    setCoupon(readCoupon())
+    setBrowserStateReady(true)
+  }, [browserStateReady])
+  useEffect(() => {
+    if (browserStateReady) localStorage.setItem(CART_KEY, JSON.stringify(cart))
+  }, [cart, browserStateReady])
+  useEffect(() => {
+    if (!browserStateReady) return
     if (coupon) localStorage.setItem(COUPON_KEY, JSON.stringify(coupon))
     else localStorage.removeItem(COUPON_KEY)
-  }, [coupon])
+  }, [coupon, browserStateReady])
   useEffect(() => {
-    if (loading || !coupon?.code) return
+    if (loading || !browserStateReady || !coupon?.code) return
     if (mode === 'demo') {
       if (coupon.code !== 'FLIP10') setCoupon(null)
       return
     }
     validateCoupon(coupon.code).then(setCoupon).catch(() => setCoupon(null))
-  }, [loading, mode])
+  }, [loading, mode, browserStateReady])
   useEffect(() => {
     if (settings.primary_color) document.documentElement.style.setProperty('--brand', settings.primary_color)
   }, [settings.primary_color])

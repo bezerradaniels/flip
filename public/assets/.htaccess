@@ -1,0 +1,4 @@
+# Arquivos gerados pelo build têm hash no nome: podem ficar em cache por 1 ano.
+<IfModule mod_headers.c>
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>

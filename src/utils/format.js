@@ -56,3 +56,38 @@ export function buildWhatsAppUrl(whatsapp, order) {
 
   return `https://wa.me/${onlyDigits(whatsapp)}?text=${encodeURIComponent(message)}`
 }
+
+// Número nacional (DDD + número), sem o código do país 55.
+export function nationalPhoneDigits(value = '') {
+  const digits = onlyDigits(value)
+  return digits.length > 11 && digits.startsWith('55') ? digits.slice(2) : digits
+}
+
+export function formatPhone(value = '') {
+  const digits = nationalPhoneDigits(value).slice(0, 11)
+  if (!digits) return ''
+  if (digits.length <= 2) return `(${digits}`
+  const ddd = digits.slice(0, 2)
+  const number = digits.slice(2)
+  if (number.length <= 4) return `(${ddd}) ${number}`
+  const split = number.length === 9 ? 5 : 4
+  return `(${ddd}) ${number.slice(0, split)}-${number.slice(split)}`
+}
+
+export function validatePhone(value = '', { required = false } = {}) {
+  const digits = nationalPhoneDigits(value)
+  if (!digits) return required ? 'Informe o número com DDD.' : ''
+  if (digits.length < 10) return 'Número incompleto. Use DDD + número, ex.: (77) 99999-9999.'
+  if (digits.length > 11) return 'Número longo demais. Use DDD + número, ex.: (77) 99999-9999.'
+  if (digits[0] === '0' || digits[1] === '0') return 'DDD inválido.'
+  const number = digits.slice(2)
+  if (number.length === 9 && number[0] !== '9') return 'Celular deve ter 9 dígitos começando com 9.'
+  if (number.length === 8 && !/^[2-5]/.test(number)) return 'Número fixo deve começar com 2, 3, 4 ou 5. Para celular, use 9 dígitos após o DDD.'
+  return ''
+}
+
+// Formato usado em links wa.me: 55 + DDD + número.
+export const toWhatsAppNumber = (value = '') => {
+  const digits = nationalPhoneDigits(value)
+  return digits ? `55${digits}` : ''
+}

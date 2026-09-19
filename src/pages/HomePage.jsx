@@ -1,8 +1,10 @@
 import { ArrowDownUp, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import FaqList from '../components/FaqList.jsx'
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductGrid.jsx'
 import { useStore } from '../context/StoreContext.jsx'
+import { storeDescription, storeTitle } from '../seo/site.js'
 
 export default function HomePage() {
   const { settings, products, categories, loading, loadError, mode } = useStore()
@@ -26,11 +28,12 @@ export default function HomePage() {
 
   const featured = products.filter((product) => product.is_featured).slice(0, 4)
   const heroProducts = (featured.length ? featured : products).slice(0, 4)
+  const heroImage = settings.hero_image_url
 
   return (
     <main>
       <section className="home-hero">
-        <div className="home-hero__visual" style={{ '--hero-image': `url("${settings.hero_image_url}")` }}>
+        <div className={`home-hero__visual ${heroImage ? '' : 'is-loading'}`} style={heroImage ? { '--hero-image': `url("${heroImage}")` } : undefined}>
           <div className="hero-products">
             {heroProducts.map((product) => (
               <Link key={product.id} to={`/produto/${product.slug}`} className="hero-product">
@@ -43,7 +46,11 @@ export default function HomePage() {
       </section>
 
       <section className="catalog-section" id="catalogo">
-        {loadError && <div className="notice"><b>Catálogo demonstrativo ativo.</b> {loadError}</div>}
+        <header className="home-intro">
+          <h1>{storeTitle(settings)}</h1>
+          <p>{storeDescription(settings)}</p>
+        </header>
+        {loadError && <div className="notice"><b>Não foi possível atualizar o catálogo.</b> {products.length ? 'Mostrando a última versão carregada.' : 'Verifique sua conexão e recarregue a página.'}</div>}
         {mode === 'demo' && !loadError && <div className="demo-pill">Prévia visual · mockups, artes e valores meramente ilustrativos</div>}
 
         <div className="catalog-tools">
@@ -70,6 +77,10 @@ export default function HomePage() {
 
         {loading ? <ProductGridSkeleton /> : <ProductGrid products={filtered} />}
       </section>
+
+      <div className="home-faq">
+        <FaqList faqs={settings.faqs} />
+      </div>
     </main>
   )
 }

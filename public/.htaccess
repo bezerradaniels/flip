@@ -1,18 +1,54 @@
-Options -MultiViews
+Options -MultiViews -Indexes
 DirectoryIndex index.html
+# URLs sem barra no final (/sobre, /produto/terco) são servidas pelos arquivos .html gerados no build.
+DirectorySlash Off
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Mantém arquivos e diretórios reais acessíveis normalmente.
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
+  # Endereço único sem www (o https já é forçado pela Hostinger).
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [R=301,L,NE]
+
+  # Barra no final vira URL sem barra (exceto a página inicial).
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+  # Página inicial.
+  RewriteRule ^$ index.html [L]
+
+  # Arquivos reais (JS, CSS, imagens, sitemap.xml, robots.txt...).
+  RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # Entrega o React para /admin, /produto/*, /pedido e demais rotas.
-  RewriteRule ^ index.html [L]
+  # Páginas geradas no build: /sobre -> sobre.html, /produto/terco -> produto/terco.html.
+  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+  RewriteRule ^(.+)$ $1.html [L]
+
+  # Rotas do app sem página pronta.
+  RewriteRule ^(admin|pedido)$ $1.html [L]
+
+  # Produtos e categorias cadastrados depois do último build: o app monta a página.
+  RewriteRule ^(produto|categoria)/[^/]+$ app.html [L]
+
+  # Qualquer outro endereço não existe.
+  RewriteCond %{REQUEST_URI} !^/404\.html$
+  RewriteRule ^ - [R=404,L]
 </IfModule>
 
-# Fallback adicional para servidores que tratam a rota antes do mod_rewrite.
-ErrorDocument 404 /index.html
+ErrorDocument 404 /404.html
+
+<IfModule mod_headers.c>
+  # Páginas e arquivos de SEO sempre revalidados. O cache longo de /assets
+  # fica em assets/.htaccess.
+  <FilesMatch "\.(html|xml|txt)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/xml .xml
+  AddType text/plain .txt
+  AddType font/woff2 .woff2
+</IfModule>

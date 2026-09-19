@@ -2,23 +2,27 @@ import { ArrowLeft, Camera, CirclePlus, Edit3, Eye, EyeOff, ExternalLink, ImageP
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand.jsx'
+import FaqEditor from '../components/FaqEditor.jsx'
 import FormField from '../components/FormField.jsx'
 import { useStore } from '../context/StoreContext.jsx'
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import {
-  deleteCategory, deleteCoupon, deleteProduct, loadAdminDashboard, saveCategory,
-  saveCoupon, saveProduct, saveStoreSettings, signInAdmin, signOutAdmin, updateOrderStatus,
+  deleteCategory, deleteCoupon, deleteProduct, loadAdminDashboard, removeStoreImages, saveCategory,
+  saveCoupon, saveProduct, saveStoreSettings, signInAdmin, signOutAdmin, STORE_IMAGE_MAX_BYTES, STORE_IMAGE_TYPES,
+  updateOrderStatus, uploadStoreImage,
 } from '../services/admin.js'
-import { money, slugify } from '../utils/format.js'
+import { demoStore } from '../data/demo.js'
+import { formatPhone, money, nationalPhoneDigits, onlyDigits, slugify, toWhatsAppNumber, validatePhone } from '../utils/format.js'
+import { cleanFaqs } from '../utils/faqs.js'
 import { buildVariantCombinations, countVariantCombinations, getVariantCombinationKey, getVariationGroups, MAX_VARIANT_COMBINATIONS, VARIATION_PRESETS } from '../utils/variants.js'
 
 const emptyProduct = {
-  id: null, name: '', slug: '', category_id: '', sku: '', barcode_type: 'none', barcode: '',
-  brand: 'Flip', unit: 'Unidade', condition: 'Novo', description: '', price: '', cost_price: '',
-  stock: '', purchase_recurrence: '', has_brand: true, has_variations: false, variation_type: '',
+  id: null, name: '', slug: '', category_id: '',
+  brand: 'Flip', unit: 'Unidade', description: '', price: '', cost_price: '',
+  stock: '', has_variations: false, variation_type: '',
   weight_kg: '', height_cm: '', length_cm: '', width_cm: '',
   is_featured: false, is_active: true, imageUrls: '', files: [],
-  variationGroups: [], variants: [], unique_price: true,
+  variationGroups: [], variants: [], unique_price: true, faqs: [],
 }
 
 const emptyCoupon = { id: null, code: '', type: 'percentage', value: '', starts_at: '', ends_at: '', is_active: true }
@@ -35,7 +39,7 @@ function AdminHeader({ onSignOut, showSignOut }) {
 }
 
 function AdminLogin({ onAuthenticated }) {
-  const [form, setForm] = useState({ email: 'apps@flipsolucoes.com.br', password: '' })
+  const [form, setForm] = useState({ email: 'loja@flipartigosreligiosos.com.br', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -77,13 +81,12 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
     const variationGroups = getVariationGroups(product)
     return {
       ...emptyProduct, ...product, category_id: product.category?.id || '',
-      sku: product.sku || '', barcode_type: product.barcode_type || 'none', barcode: product.barcode || '',
-      brand: product.brand || 'Flip', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
-      purchase_recurrence: product.purchase_recurrence || '', has_brand: product.has_brand !== false,
+      brand: product.brand || '', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
       has_variations: product.has_variations || Boolean(product.variants?.length), variation_type: product.variation_type || '',
       unique_price: !product.variants?.some((item) => item.price_override !== null && item.price_override !== undefined),
       weight_kg: product.weight_kg ?? '', height_cm: product.height_cm ?? '', length_cm: product.length_cm ?? '', width_cm: product.width_cm ?? '',
       imageUrls: product.images?.map((item) => item.url).join('\n') || '',
+      faqs: Array.isArray(product.faqs) ? product.faqs : [],
       variationGroups,
       variants: product.variants?.length
         ? product.variants.map((item) => ({ ...item, price_override: item.price_override ?? '', stock: item.stock ?? '' }))
@@ -113,6 +116,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
     ['price', 'Preço'],
     ['photos', 'Fotos'],
     ['stock', 'Estoque e variações'],
+    ['faq', 'Perguntas frequentes'],
   ]
   const change = (key) => (event) => {
     const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value
@@ -202,24 +206,41 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
       <div className="product-editor-layout">
         <aside className="product-editor-nav">{sections.map(([id, label]) => <button type="button" key={id} className={section === id ? 'is-active' : ''} onClick={() => setSection(id)}>{label}</button>)}</aside>
         <div className="product-editor-panel">
-          {section === 'general' && <div className="admin-form-grid">
+          {section === 'general' && <div className="admin-form-grid admin-form-grid--general">
             <FormField label="Título"><input required maxLength={160} value={form.name} onChange={change('name')} placeholder="Ex.: Caneca personalizada" /></FormField>
             <FormField label="Slug"><input required value={form.slug} onChange={change('slug')} /></FormField>
             <FormField label="Descrição"><textarea value={form.description} onChange={change('description')} placeholder="Explique o produto, possibilidades de personalização, prazo e observações importantes." /></FormField>
-            <FormField label="Categoria"><select required value={form.category_id} onChange={change('category_id')}><option value="">Selecione</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
-            <FormField label="SKU / referência" optional><input value={form.sku} onChange={change('sku')} placeholder="Ex.: CAN-001" /></FormField>
-            <FormField label="Tipo de código de barras"><select value={form.barcode_type} onChange={change('barcode_type')}><option value="none">Não possui</option><option value="ean">EAN</option><option value="upc">UPC</option><option value="isbn">ISBN</option><option value="custom">Outro</option></select></FormField>
-            <FormField label="Código de barras" optional><input value={form.barcode} onChange={change('barcode')} disabled={form.barcode_type === 'none'} /></FormField>
-            <FormField label="Condição"><input value={form.condition} onChange={change('condition')} /></FormField>
-            <FormField label="Unidade"><input value={form.unit} onChange={change('unit')} /></FormField>
-            <FormField label="Recorrência de compra" optional><input value={form.purchase_recurrence} onChange={change('purchase_recurrence')} placeholder="Ex.: compra única" /></FormField>
-            <FormField label="Marca"><input value={form.brand} onChange={change('brand')} disabled={!form.has_brand} /></FormField>
-            <div className="admin-checks"><label><input type="checkbox" checked={!form.has_brand} onChange={(event) => setForm({ ...form, has_brand: !event.target.checked, brand: event.target.checked ? '' : form.brand || 'Flip' })} /> Não possui marca ou é um kit</label></div>
-            <FormField label="Peso (kg)" optional><input type="number" min="0" step="0.001" value={form.weight_kg} onChange={change('weight_kg')} /></FormField>
-            <FormField label="Altura (cm)" optional><input type="number" min="0" step="0.01" value={form.height_cm} onChange={change('height_cm')} /></FormField>
-            <FormField label="Comprimento (cm)" optional><input type="number" min="0" step="0.01" value={form.length_cm} onChange={change('length_cm')} /></FormField>
-            <FormField label="Largura (cm)" optional><input type="number" min="0" step="0.01" value={form.width_cm} onChange={change('width_cm')} /></FormField>
-            <div className="admin-checks"><label><input type="checkbox" checked={form.is_active} onChange={change('is_active')} /> Produto ativo</label><label><input type="checkbox" checked={form.is_featured} onChange={change('is_featured')} /> Exibir em destaque</label></div>
+            <div className="admin-form-row admin-form-row--3">
+              <FormField label="Categoria"><select required value={form.category_id} onChange={change('category_id')}><option value="">Selecione</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
+              <FormField label="Marca" optional><input value={form.brand} onChange={change('brand')} placeholder="Ex.: Flip" /></FormField>
+              <FormField label="Unidade"><input value={form.unit} onChange={change('unit')} /></FormField>
+            </div>
+            <fieldset className="admin-fieldset">
+              <legend>Peso e dimensões <em>(opcional)</em></legend>
+              <div className="admin-form-row admin-form-row--4">
+                <FormField label="Peso (kg)"><input type="number" min="0" step="0.001" inputMode="decimal" value={form.weight_kg} onChange={change('weight_kg')} /></FormField>
+                <FormField label="Altura (cm)"><input type="number" min="0" step="0.01" inputMode="decimal" value={form.height_cm} onChange={change('height_cm')} /></FormField>
+                <FormField label="Comprimento (cm)"><input type="number" min="0" step="0.01" inputMode="decimal" value={form.length_cm} onChange={change('length_cm')} /></FormField>
+                <FormField label="Largura (cm)"><input type="number" min="0" step="0.01" inputMode="decimal" value={form.width_cm} onChange={change('width_cm')} /></FormField>
+              </div>
+            </fieldset>
+            <div className="admin-toggles">
+              <label className="admin-toggle">
+                <input type="checkbox" role="switch" checked={form.is_active} onChange={change('is_active')} />
+                <span><b>Produto ativo</b><small>Aparece no catálogo e pode ser pedido.</small></span>
+              </label>
+              <label className="admin-toggle">
+                <input type="checkbox" role="switch" checked={form.is_featured} onChange={change('is_featured')} />
+                <span><b>Exibir em destaque</b><small>Entra nos destaques da página inicial (até 4).</small></span>
+              </label>
+            </div>
+          </div>}
+          {section === 'faq' && <div className="product-section">
+            <FaqEditor
+              value={form.faqs}
+              onChange={(faqs) => setForm((current) => ({ ...current, faqs }))}
+              hint="Dúvidas comuns sobre este produto: material, tamanho, personalização, se é bento. Aparecem na página do produto e ajudam o Google e assistentes de IA a responder sobre ele."
+            />
           </div>}
           {section === 'stock' && <div className="product-section">
             <FormField label="Este produto possui variações?"><div className="admin-radio-row"><label><input type="radio" name="has-variations" checked={!form.has_variations} onChange={() => setForm({ ...form, has_variations: false })} /> Não</label><label><input type="radio" name="has-variations" checked={form.has_variations} onChange={() => setForm({ ...form, has_variations: true })} /> Sim</label></div></FormField>
@@ -310,9 +331,53 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
   )
 }
 
+const GOOGLE_CATEGORY_SUGGESTIONS = [
+  ['Religious & Ceremonial > Religious Items', 'Artigos religiosos (geral)'],
+  ['Religious & Ceremonial > Religious Items > Prayer Beads', 'Terços e rosários'],
+  ['Religious & Ceremonial > Religious Items > Prayer Cards', 'Santinhos e orações'],
+  ['Religious & Ceremonial > Religious Items > Religious Altars', 'Oratórios e altares'],
+  ['Religious & Ceremonial > Religious Items > Religious Veils', 'Véus'],
+  ['Home & Garden > Decor > Figurines', 'Imagens de santos e estátuas'],
+  ['Apparel & Accessories > Jewelry > Charms & Pendants', 'Medalhas e pingentes'],
+  ['Apparel & Accessories > Jewelry > Necklaces', 'Correntes e colares'],
+  ['Media > Books', 'Bíblias e livros'],
+  ['Arts & Entertainment > Party & Celebration > Party Supplies > Party Favors', 'Lembrancinhas'],
+]
+
+function CategoryEditor({ category, onCancel, onSaved }) {
+  const [form, setForm] = useState(category)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }))
+  const submit = async (event) => {
+    event.preventDefault(); setSaving(true); setError('')
+    try { await saveCategory(form); onSaved() } catch (saveError) { setError(saveError.message) } finally { setSaving(false) }
+  }
+  return (
+    <form className="category-editor" onSubmit={submit}>
+      <div className="admin-form-grid admin-form-grid--general">
+        <FormField label="Nome"><input required maxLength={80} value={form.name} onChange={set('name')} /></FormField>
+        <FormField label="Slug"><input required value={form.slug} onChange={set('slug')} /></FormField>
+        <FormField label="Descrição da categoria" optional><textarea maxLength={2000} value={form.description} onChange={set('description')} placeholder="Ex.: Terços de madeira, cristal e prata para oração do dia a dia e para presentear em batizados e crismas." /></FormField>
+        <FormField label="Categoria no Google Shopping" optional>
+          <input list="google-categories" value={form.google_product_category} onChange={set('google_product_category')} placeholder="Religious & Ceremonial > Religious Items" />
+          <datalist id="google-categories">{GOOGLE_CATEGORY_SUGGESTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</datalist>
+        </FormField>
+      </div>
+      <p className="admin-hint">A descrição aparece no topo da página da categoria e nas buscas. A categoria do Google define onde os produtos entram no Google Shopping; vazio usa "Artigos religiosos (geral)".</p>
+      {error && <div className="form-error">{error}</div>}
+      <div className="category-editor__actions">
+        <button className="button button--primary" disabled={saving}><Save size={16} /> {saving ? 'Salvando…' : 'Salvar categoria'}</button>
+        <button type="button" className="button button--outline" onClick={onCancel}>Cancelar</button>
+      </div>
+    </form>
+  )
+}
+
 function ProductsTab({ data, reload, demo }) {
   const [editing, setEditing] = useState(undefined)
   const [category, setCategory] = useState({ name: '', slug: '' })
+  const [editingCategory, setEditingCategory] = useState(null)
   const [error, setError] = useState('')
   const remove = async (product) => {
     if (!window.confirm(`Excluir ${product.name}?`)) return
@@ -340,48 +405,164 @@ function ProductsTab({ data, reload, demo }) {
       <section className="admin-card">
         <div className="admin-card__head"><div><span className="kicker">Organização</span><h2>Categorias</h2></div></div>
         <form className="inline-admin-form" onSubmit={addCategory}><input aria-label="Nome da categoria" disabled={demo} value={category.name} onChange={(event) => setCategory({ name: event.target.value, slug: slugify(event.target.value) })} placeholder="Nome da categoria" required /><button className="button button--secondary" disabled={demo}><CirclePlus size={16} /> Adicionar</button></form>
-        <div className="category-admin-list">{data.categories.map((item) => <span key={item.id}>{item.name}<button disabled={demo} onClick={() => removeCategory(item)} aria-label={`Excluir categoria ${item.name}`}><Trash2 size={14} /></button></span>)}</div>
+        <div className="category-admin-list">{data.categories.map((item) => <span key={item.id} className={editingCategory?.id === item.id ? 'is-editing' : ''}>{item.name}<button disabled={demo} onClick={() => setEditingCategory({ ...item, description: item.description || '', google_product_category: item.google_product_category || '' })} aria-label={`Editar categoria ${item.name}`}><Edit3 size={14} /></button><button disabled={demo} onClick={() => removeCategory(item)} aria-label={`Excluir categoria ${item.name}`}><Trash2 size={14} /></button></span>)}</div>
+        {editingCategory && <CategoryEditor category={editingCategory} onCancel={() => setEditingCategory(null)} onSaved={() => { setEditingCategory(null); reload() }} />}
       </section>
       {error && <div className="form-error">{error}</div>}
     </div>
   )
 }
 
+function ImageUploadField({ id, label, hint, url, file, fallbackUrl, fallbackLabel, variant, disabled, error, onSelect, onRemove }) {
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+  const src = preview || url || fallbackUrl
+  const usingFallback = !preview && !url
+  const name = file ? file.name : usingFallback ? fallbackLabel : 'Imagem atual'
+  return (
+    <div className={`field image-upload image-upload--${variant} ${error ? 'has-error' : ''}`}>
+      <span>{label} <em>(opcional)</em></span>
+      <div className="image-upload__box">
+        <div className="image-upload__preview">{src ? <img src={src} alt="" /> : <ImagePlus size={22} />}</div>
+        <div className="image-upload__body">
+          <b title={name}>{name}</b>
+          <small>{hint}</small>
+          <div className="image-upload__actions">
+            <label className={`file-field ${disabled ? 'is-disabled' : ''}`}>
+              <ImagePlus size={17} /><span>{usingFallback ? 'Enviar imagem' : 'Trocar imagem'}</span>
+              <input id={id} type="file" accept={STORE_IMAGE_TYPES.join(',')} disabled={disabled} onChange={(event) => { onSelect(event.target.files?.[0]); event.target.value = '' }} />
+            </label>
+            {!usingFallback && <button type="button" className="image-upload__remove" disabled={disabled} onClick={onRemove}><Trash2 size={16} /> Remover</button>}
+          </div>
+        </div>
+      </div>
+      {error && <small>{error}</small>}
+    </div>
+  )
+}
+
+const imageFileError = (file) => {
+  if (!STORE_IMAGE_TYPES.includes(file.type)) return 'Use uma imagem JPG, PNG ou WebP.'
+  if (file.size > STORE_IMAGE_MAX_BYTES) return 'A imagem deve ter no máximo 5 MB.'
+  return ''
+}
+
+const displayPhone = (value) => (nationalPhoneDigits(value).length <= 11 ? formatPhone(value) : value || '')
+const withDisplayPhones = (settings) => ({ ...settings, whatsapp: displayPhone(settings?.whatsapp), phone: displayPhone(settings?.phone) })
+const phoneRules = { whatsapp: { required: true }, phone: { required: false } }
+
 function SettingsTab({ settings: initialSettings, reload, demo }) {
-  const [settings, setSettings] = useState(initialSettings)
+  const [settings, setSettings] = useState(() => withDisplayPhones(initialSettings))
   const [status, setStatus] = useState('')
-  useEffect(() => setSettings(initialSettings), [initialSettings])
+  const [phoneErrors, setPhoneErrors] = useState({})
+  const [imageFiles, setImageFiles] = useState({})
+  const [imageErrors, setImageErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+  useEffect(() => { setSettings(withDisplayPhones(initialSettings)); setPhoneErrors({}); setImageFiles({}); setImageErrors({}) }, [initialSettings])
+  const selectImage = (key) => (file) => {
+    if (!file) return
+    const fileError = imageFileError(file)
+    setImageErrors((current) => ({ ...current, [key]: fileError }))
+    if (!fileError) setImageFiles((current) => ({ ...current, [key]: file }))
+  }
+  const removeImage = (key) => () => {
+    setImageFiles((current) => ({ ...current, [key]: null }))
+    setImageErrors((current) => ({ ...current, [key]: '' }))
+    set(key, null)
+  }
   const set = (key, value) => setSettings((current) => ({ ...current, [key]: value }))
+  const checkPhone = (key, value) => setPhoneErrors((current) => ({ ...current, [key]: validatePhone(value, phoneRules[key]) }))
+  const changePhone = (key) => (event) => {
+    let value = event.target.value
+    // Apagar só um separador da máscara ( "(", ")", " ", "-" ) apaga o último dígito.
+    if (event.nativeEvent.inputType?.startsWith('delete') && onlyDigits(value) === onlyDigits(settings[key])) value = onlyDigits(value).slice(0, -1)
+    const formatted = formatPhone(value)
+    set(key, formatted)
+    if (phoneErrors[key]) checkPhone(key, formatted)
+  }
   const toggleList = (key, value) => setSettings((current) => {
     const values = current[key] || []
     return { ...current, [key]: values.includes(value) ? values.filter((item) => item !== value) : [...values, value] }
   })
   const submit = async (event) => {
-    event.preventDefault(); setStatus('Salvando…')
+    event.preventDefault()
+    const errors = Object.fromEntries(Object.keys(phoneRules).map((key) => [key, validatePhone(settings[key], phoneRules[key])]))
+    setPhoneErrors(errors)
+    const invalid = Object.keys(errors).find((key) => errors[key])
+    if (invalid) {
+      setStatus('')
+      document.getElementById(`settings-${invalid}`)?.focus()
+      return
+    }
+    setSaving(true)
     try {
-      await saveStoreSettings({ ...settings, logo_url: settings.custom_logo_url || null, payment_methods: settings.payment_methods || [], delivery_methods: settings.delivery_methods || [] })
+      const images = {}
+      for (const key of ['logo_url', 'hero_image_url']) {
+        if (imageFiles[key]) {
+          setStatus('Enviando imagens…')
+          images[key] = await uploadStoreImage(imageFiles[key], key === 'logo_url' ? 'logo' : 'hero')
+        } else {
+          images[key] = settings[key] || null
+        }
+      }
+      setStatus('Salvando…')
+      await saveStoreSettings({
+        ...settings,
+        ...images,
+        whatsapp: toWhatsAppNumber(settings.whatsapp),
+        phone: formatPhone(settings.phone) || null,
+        seo_title: settings.seo_title?.trim() || null,
+        seo_description: settings.seo_description?.trim() || null,
+        faqs: cleanFaqs(settings.faqs),
+        payment_methods: settings.payment_methods || [], delivery_methods: settings.delivery_methods || [],
+      })
+      await removeStoreImages(['logo_url', 'hero_image_url']
+        .filter((key) => initialSettings?.[key] && initialSettings[key] !== images[key])
+        .map((key) => initialSettings[key]))
       setStatus('Alterações salvas.'); reload()
-    } catch (error) { setStatus(error.message) }
+    } catch (error) { setStatus(error.message) } finally { setSaving(false) }
   }
   return (
     <form className="admin-card admin-settings" onSubmit={submit}>
       <div className="admin-card__head"><div><span className="kicker">Identidade e contato</span><h2>Informações da loja</h2></div></div>
-      <div className="admin-form-grid">
+      <div className="admin-form-grid admin-form-grid--settings">
         <FormField label="Nome da loja"><input disabled={demo} value={settings.name || ''} onChange={(event) => set('name', event.target.value)} /></FormField>
         <FormField label="Slogan"><input disabled={demo} value={settings.slogan || ''} onChange={(event) => set('slogan', event.target.value)} /></FormField>
-        <FormField label="WhatsApp"><input disabled={demo} value={settings.whatsapp || ''} onChange={(event) => set('whatsapp', event.target.value)} /></FormField>
-        <FormField label="Telefone"><input disabled={demo} value={settings.phone || ''} onChange={(event) => set('phone', event.target.value)} /></FormField>
+        <FormField label="WhatsApp" error={phoneErrors.whatsapp}><input id="settings-whatsapp" type="tel" inputMode="tel" autoComplete="off" placeholder="(77) 99999-9999" aria-invalid={Boolean(phoneErrors.whatsapp)} disabled={demo} value={settings.whatsapp || ''} onChange={changePhone('whatsapp')} onBlur={(event) => checkPhone('whatsapp', event.target.value)} /></FormField>
+        <FormField label="Telefone" optional error={phoneErrors.phone}><input id="settings-phone" type="tel" inputMode="tel" autoComplete="off" placeholder="(77) 3481-1234" aria-invalid={Boolean(phoneErrors.phone)} disabled={demo} value={settings.phone || ''} onChange={changePhone('phone')} onBlur={(event) => checkPhone('phone', event.target.value)} /></FormField>
         <FormField label="E-mail"><input disabled={demo} value={settings.email || ''} onChange={(event) => set('email', event.target.value)} /></FormField>
         <FormField label="Endereço"><input disabled={demo} value={settings.address || ''} onChange={(event) => set('address', event.target.value)} /></FormField>
         <FormField label="Instagram" optional><input disabled={demo} value={settings.instagram_url || ''} onChange={(event) => set('instagram_url', event.target.value)} /></FormField>
-        <FormField label="Logo personalizada (URL)" optional><input disabled={demo} value={settings.custom_logo_url || ''} onChange={(event) => set('custom_logo_url', event.target.value)} placeholder="Deixe vazio para usar a logo oficial" /></FormField>
-        <FormField label="Imagem do destaque" optional><input disabled={demo} value={settings.hero_image_url || ''} onChange={(event) => set('hero_image_url', event.target.value)} /></FormField>
+        <div className="admin-form-row admin-form-row--2">
+          <ImageUploadField
+            id="settings-logo" label="Logo" variant="logo" disabled={demo || saving}
+            url={settings.logo_url} file={imageFiles.logo_url} error={imageErrors.logo_url}
+            fallbackUrl={demoStore.logo_url} fallbackLabel="Logo oficial da Flip"
+            hint="PNG com fundo transparente, quadrada. Sem imagem, usa a logo oficial."
+            onSelect={selectImage('logo_url')} onRemove={removeImage('logo_url')}
+          />
+          <ImageUploadField
+            id="settings-hero" label="Imagem do destaque" variant="hero" disabled={demo || saving}
+            url={settings.hero_image_url} file={imageFiles.hero_image_url} error={imageErrors.hero_image_url}
+            fallbackUrl={demoStore.hero_image_url} fallbackLabel="Imagem padrão"
+            hint="Horizontal, com pelo menos 1600 px de largura. Aparece no topo da página inicial."
+            onSelect={selectImage('hero_image_url')} onRemove={removeImage('hero_image_url')}
+          />
+        </div>
         <FormField label="Sobre a loja"><textarea disabled={demo} value={settings.about || ''} onChange={(event) => set('about', event.target.value)} /></FormField>
+        <fieldset className="admin-fieldset admin-seo">
+          <legend>Google e assistentes de IA</legend>
+          <p className="admin-hint">Como a loja aparece nas buscas do Google e em respostas do ChatGPT, Gemini e outros. Diga o que vende e onde fica.</p>
+          <FormField label={`Título da loja (${(settings.seo_title || '').length}/70)`} optional><input disabled={demo} maxLength={70} value={settings.seo_title || ''} onChange={(event) => set('seo_title', event.target.value)} placeholder="Ex.: Flip Artigos Religiosos em Bom Jesus da Lapa, BA" /></FormField>
+          <FormField label={`Descrição da loja (${(settings.seo_description || '').length}/320 · ideal até 160)`} optional><textarea disabled={demo} maxLength={320} value={settings.seo_description || ''} onChange={(event) => set('seo_description', event.target.value)} placeholder="Ex.: Terços, imagens de santos e lembrancinhas religiosas com envio para todo o Brasil." /></FormField>
+          <span className="admin-seo__label">Perguntas frequentes da loja</span>
+          <FaqEditor disabled={demo} value={settings.faqs} onChange={(faqs) => set('faqs', faqs)} hint="Aparecem na página inicial. Boas perguntas: onde fica a loja, prazos, formas de envio, personalização, trocas." />
+        </fieldset>
         <div className="field choice-field"><span>Formas de pagamento</span><div className="check-grid">{paymentOptions.map((option) => <label key={option}><input disabled={demo} type="checkbox" checked={(settings.payment_methods || []).includes(option)} onChange={() => toggleList('payment_methods', option)} /><span>{option}</span></label>)}</div></div>
         <div className="field choice-field"><span>Formas de entrega</span><div className="check-grid">{deliveryOptions.map((option) => <label key={option}><input disabled={demo} type="checkbox" checked={(settings.delivery_methods || []).includes(option)} onChange={() => toggleList('delivery_methods', option)} /><span>{option}</span></label>)}</div></div>
       </div>
       {status && <p className="admin-status">{status}</p>}
-      <button className="button button--primary" disabled={demo}><Save size={17} /> Salvar alterações</button>
+      <button className="button button--primary" disabled={demo || saving}>{saving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />} {saving ? 'Salvando…' : 'Salvar alterações'}</button>
     </form>
   )
 }

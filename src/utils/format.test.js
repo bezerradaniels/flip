@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildWhatsAppUrl, calculateCouponDiscount, getDiscountedProductPrice, getProductPrice, onlyDigits, slugify } from './format.js'
+import { buildWhatsAppUrl, calculateCouponDiscount, formatPhone, getDiscountedProductPrice, getProductPrice, onlyDigits, slugify, toWhatsAppNumber, validatePhone } from './format.js'
 
 test('slugify normaliza acentos e espaços', () => {
   assert.equal(slugify('Copo Térmico 500 ml'), 'copo-termico-500-ml')
@@ -34,4 +34,31 @@ test('buildWhatsAppUrl inclui o resumo do pedido sem montar query inválida', ()
   })
   assert.match(url, /^https:\/\/wa\.me\/5577999999999\?text=/)
   assert.match(decodeURIComponent(url), /2x Copo \(Verde\)/)
+})
+
+test('formatPhone aplica a máscara de celular e fixo', () => {
+  assert.equal(formatPhone('77986345421'), '(77) 98634-5421')
+  assert.equal(formatPhone('7734811234'), '(77) 3481-1234')
+  assert.equal(formatPhone('5577986345421'), '(77) 98634-5421')
+  assert.equal(formatPhone('779'), '(77) 9')
+  assert.equal(formatPhone(''), '')
+})
+
+test('validatePhone aceita números válidos e explica os inválidos', () => {
+  assert.equal(validatePhone('(77) 98634-5421'), '')
+  assert.equal(validatePhone('+55 77 98634-5421'), '')
+  assert.equal(validatePhone('(77) 3481-1234'), '')
+  assert.equal(validatePhone('', { required: true }), 'Informe o número com DDD.')
+  assert.equal(validatePhone(''), '')
+  assert.match(validatePhone('7798634'), /incompleto/)
+  assert.match(validatePhone('42354252436524'), /longo demais/)
+  assert.match(validatePhone('557798634542'), /fixo/)
+  assert.match(validatePhone('77886345421'), /Celular/)
+  assert.match(validatePhone('07986345421'), /DDD/)
+})
+
+test('toWhatsAppNumber adiciona o código do país', () => {
+  assert.equal(toWhatsAppNumber('(77) 98634-5421'), '5577986345421')
+  assert.equal(toWhatsAppNumber('5577986345421'), '5577986345421')
+  assert.equal(toWhatsAppNumber(''), '')
 })
