@@ -1,13 +1,14 @@
-import { Check, Plus, ShoppingBag } from 'lucide-react'
+import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getCartItemKey, useStore } from '../context/StoreContext.jsx'
 import { getProductPrice, money } from '../utils/format.js'
 import ProductImage from './ProductImage.jsx'
 
 export default function ProductCard({ product }) {
-  const { cart, coupon, addToCart, getDisplayPrice } = useStore()
+  const { cart, coupon, addToCart, updateCart, removeFromCart, getDisplayPrice } = useStore()
   const defaultVariant = product.variants?.[0] || null
-  const isAdded = cart.some((item) => item.key === getCartItemKey(product, defaultVariant))
+  const cartKey = getCartItemKey(product, defaultVariant)
+  const cartItem = cart.find((item) => item.key === cartKey)
   const price = getProductPrice(product, defaultVariant)
   const displayedPrice = getDisplayPrice(price)
   const hasCouponDiscount = displayedPrice < price
@@ -36,11 +37,22 @@ export default function ProductCard({ product }) {
           </Link>
         ) : (
           <>
-            <button className={`button button--card ${isAdded ? 'is-added' : ''}`} type="button" onClick={() => addToCart(product, defaultVariant)}>
-              {isAdded ? <Check size={16} /> : <ShoppingBag size={16} />}
-              {isAdded ? 'Adicionar mais' : 'Adicionar'}
-              {!isAdded && <Plus size={14} />}
-            </button>
+            {cartItem ? (
+              <div className="card-cart-controls">
+                <div className="card-stepper">
+                  <button type="button" onClick={() => updateCart(cartKey, -1)} aria-label={`Diminuir quantidade de ${product.name}`}><Minus size={16} /></button>
+                  <b aria-live="polite" aria-label={`${cartItem.quantity} na sacolinha`}>{cartItem.quantity}</b>
+                  <button type="button" onClick={() => updateCart(cartKey, 1)} aria-label={`Aumentar quantidade de ${product.name}`}><Plus size={16} /></button>
+                </div>
+                <button className="card-cart-remove" type="button" onClick={() => removeFromCart(cartKey)} aria-label={`Remover ${product.name} da sacolinha`}><Trash2 size={16} /></button>
+              </div>
+            ) : (
+              <button className="button button--card" type="button" onClick={() => addToCart(product, defaultVariant)}>
+                <ShoppingBag size={16} />
+                Adicionar
+                <Plus size={14} />
+              </button>
+            )}
             <Link className="product-card__more" to={`/produto/${product.slug}`}>Mais informações</Link>
           </>
         )}
