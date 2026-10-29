@@ -82,7 +82,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
     const variationGroups = getVariationGroups(product)
     return {
       ...emptyProduct, ...product, category_id: product.category?.id || '',
-      brand: product.brand || '', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
+      brand: product.brand || '', description: product.description || '', unit: product.unit || 'Unidade', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
       has_variations: product.has_variations || Boolean(product.variants?.length), variation_type: product.variation_type || '',
       unique_price: !product.variants?.some((item) => item.price_override !== null && item.price_override !== undefined),
       weight_kg: product.weight_kg ?? '', height_cm: product.height_cm ?? '', length_cm: product.length_cm ?? '', width_cm: product.width_cm ?? '',

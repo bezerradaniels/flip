@@ -52,10 +52,10 @@ const nullableInteger = (value) => {
 export async function saveProduct({ product, imageUrls, variants = [], files }) {
   const record = {
     category_id: product.category_id || null,
-    name: product.name.trim(), slug: product.slug.trim(),
+    name: (product.name || '').trim(), slug: (product.slug || '').trim(),
     brand: product.brand?.trim() || null,
-    unit: product.unit.trim() || 'Unidade',
-    description: product.description.trim() || null, price: Number(product.price),
+    unit: product.unit?.trim() || 'Unidade',
+    description: product.description?.trim() || null, price: Number(product.price),
     cost_price: nullableNumber(product.cost_price),
     stock: nullableInteger(product.stock),
     has_brand: Boolean(product.brand?.trim()),
