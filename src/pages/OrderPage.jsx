@@ -5,6 +5,7 @@ import FormField from '../components/FormField.jsx'
 import { useStore } from '../context/StoreContext.jsx'
 import { submitOrder } from '../services/catalog.js'
 import { buildWhatsAppUrl, money } from '../utils/format.js'
+import ProductImage from '../components/ProductImage.jsx'
 
 const CUSTOMER_KEY = 'flip-customer-v1'
 
@@ -149,7 +150,7 @@ export default function OrderPage() {
             <div className="order-card__title"><PackageCheck size={22} /><h2>Seu pedido</h2></div>
             <div className="order-items">
               {cart.map((item) => (
-                <div key={item.key}><img src={item.image} alt="" /><span><b>{item.name}</b><small>{item.quantity}x{item.variantName ? ` ${item.variantName}` : ''}</small></span><strong>{money(getDisplayPrice(item.unitPrice * item.quantity))}</strong></div>
+                <div key={item.key}><ProductImage src={item.image} /><span><b>{item.name}</b><small>{item.quantity}x{item.variantName ? ` ${item.variantName}` : ''}</small></span><strong>{money(getDisplayPrice(item.unitPrice * item.quantity))}</strong></div>
               ))}
               {!cart.length && <p>Sua sacolinha está vazia.</p>}
             </div>

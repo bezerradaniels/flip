@@ -5,6 +5,7 @@ import FaqList from '../components/FaqList.jsx'
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductGrid.jsx'
 import { useStore } from '../context/StoreContext.jsx'
 import { storeDescription, storeTitle } from '../seo/site.js'
+import ProductImage from '../components/ProductImage.jsx'
 
 export default function HomePage() {
   const { settings, products, categories, loading, loadError, mode } = useStore()
@@ -37,7 +38,7 @@ export default function HomePage() {
           <div className="hero-products">
             {heroProducts.map((product) => (
               <Link key={product.id} to={`/produto/${product.slug}`} className="hero-product">
-                <img src={product.images?.[0]?.url} alt="" />
+                <ProductImage src={product.images?.[0]?.url} />
                 <span>{product.name}</span>
               </Link>
             ))}

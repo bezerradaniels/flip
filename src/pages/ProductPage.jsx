@@ -9,6 +9,7 @@ import { categoryPath, productPath } from '../seo/site.js'
 import { getProductPrice, money, onlyDigits } from '../utils/format.js'
 import { findVariantForSelection, getVariantAttributes, getVariationGroups, hasStructuredVariants } from '../utils/variants.js'
 import NotFoundPage from './NotFoundPage.jsx'
+import ProductImage from '../components/ProductImage.jsx'
 
 export default function ProductPage() {
   const { slug } = useParams()
@@ -59,7 +60,7 @@ export default function ProductPage() {
       <section className="product-detail">
         <div className="product-gallery">
           <div className="product-gallery__main">
-            {images[imageIndex].url ? <img src={images[imageIndex].url} alt={images[imageIndex].alt_text || product.name} /> : <span>Sem imagem</span>}
+            <ProductImage src={images[imageIndex].url} alt={images[imageIndex].alt_text || product.name} />
             {images.length > 1 && (
               <>
                 <button type="button" className="gallery-prev" onClick={() => setImageIndex((imageIndex - 1 + images.length) % images.length)} aria-label="Imagem anterior"><ChevronLeft /></button>
@@ -68,7 +69,7 @@ export default function ProductPage() {
             )}
           </div>
           <div className="product-gallery__thumbs">
-            {images.map((item, index) => <button className={index === imageIndex ? 'is-active' : ''} type="button" key={item.id || item.url} onClick={() => setImageIndex(index)}><img src={item.url} alt="" /></button>)}
+            {images.map((item, index) => <button className={index === imageIndex ? 'is-active' : ''} type="button" key={item.id || item.url} onClick={() => setImageIndex(index)}><ProductImage src={item.url} /></button>)}
           </div>
           <div className="product-description">
             <h2>Descrição</h2>
