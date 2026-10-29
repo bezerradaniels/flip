@@ -69,66 +69,63 @@ export async function saveProduct({ product, imageUrls, variants = [], files }) 
     faqs: cleanFaqs(product.faqs),
   }
 
-  const result = product.id
-    ? await supabase.from('products').update(record).eq('id', product.id).select('id').single()
-    : await supabase.from('products').insert(record).select('id').single()
-  if (result.error) throw result.error
-  const productId = result.data.id
-
-  const { data: previousImages, error: previousError } = await supabase.from('product_images').select('*').eq('product_id', productId)
-  if (previousError) throw previousError
-
+  // Passo 1: envia as fotos novas. Nada no banco muda até o passo 2.
   const normalizedUrls = imageUrls.map((url) => url.trim()).filter(Boolean)
-  const removedPaths = (previousImages || []).filter((item) => item.storage_path && !normalizedUrls.includes(item.url)).map((item) => item.storage_path)
-  if (removedPaths.length) {
-    const { error } = await supabase.storage.from('product-images').remove(removedPaths)
-    if (error) throw error
-  }
-
   const uploaded = []
-  for (const original of files) {
-    const file = await optimizeImage(original, { maxSize: 1600 })
-    const path = `${productId}/${crypto.randomUUID()}-${safeFileName(file.name)}`
-    const { error } = await supabase.storage.from('product-images').upload(path, file, { upsert: false, contentType: file.type })
-    if (error) throw error
-    const { data } = supabase.storage.from('product-images').getPublicUrl(path)
-    uploaded.push({ url: data.publicUrl, storage_path: path })
-  }
+  try {
+    const folder = product.id || crypto.randomUUID()
+    for (const original of files) {
+      const file = await optimizeImage(original, { maxSize: 1600 })
+      const path = `${folder}/${crypto.randomUUID()}-${safeFileName(file.name)}`
+      const { error } = await supabase.storage.from('product-images').upload(path, file, { upsert: false, contentType: file.type })
+      if (error) throw error
+      uploaded.push({ url: supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl, storage_path: path })
+    }
 
-  const imagesToSave = [
-    ...normalizedUrls.map((url) => ({ url, storage_path: previousImages?.find((item) => item.url === url)?.storage_path || null })),
-    ...uploaded,
-  ]
-  const { error: deleteImagesError } = await supabase.from('product_images').delete().eq('product_id', productId)
-  if (deleteImagesError) throw deleteImagesError
-  if (imagesToSave.length) {
-    const { error } = await supabase.from('product_images').insert(imagesToSave.map((item, position) => ({
-      product_id: productId, url: item.url, storage_path: item.storage_path, alt_text: product.name, position,
-    })))
-    if (error) throw error
-  }
+    let previousImages = []
+    if (product.id) {
+      const { data, error } = await supabase.from('product_images').select('url, storage_path').eq('product_id', product.id)
+      if (error) throw error
+      previousImages = data || []
+    }
 
-  const { error: deleteVariantsError } = await supabase.from('product_variants').delete().eq('product_id', productId)
-  if (deleteVariantsError) throw deleteVariantsError
-  const variantsToSave = product.has_variations
-    ? variants
-        .map((variant) => ({
-          name: variant.name?.trim(),
-          attributes: Object.fromEntries(Object.entries(variant.attributes || {})
-            .map(([type, value]) => [type.trim(), String(value).trim()])
-            .filter(([type, value]) => type && value)),
-          price_override: nullableNumber(variant.price_override),
-          stock: nullableInteger(variant.stock),
-        }))
-        .filter((variant) => variant.name)
-    : []
-  if (variantsToSave.length) {
-    const { error } = await supabase.from('product_variants').insert(variantsToSave.map((variant, position) => ({
-      product_id: productId, ...variant, position,
-    })))
+    const imagesToSave = [
+      ...normalizedUrls.map((url) => ({ url, storage_path: previousImages.find((item) => item.url === url)?.storage_path || null })),
+      ...uploaded,
+    ].map((item) => ({ ...item, alt_text: product.name }))
+
+    const variantsToSave = product.has_variations
+      ? variants
+          .map((variant) => ({
+            name: variant.name?.trim(),
+            attributes: Object.fromEntries(Object.entries(variant.attributes || {})
+              .map(([type, value]) => [type.trim(), String(value).trim()])
+              .filter(([type, value]) => type && value)),
+            price_override: nullableNumber(variant.price_override),
+            stock: nullableInteger(variant.stock),
+          }))
+          .filter((variant) => variant.name)
+      : []
+
+    // Passo 2: produto, imagens e variações gravados numa única transação.
+    const { data: productId, error } = await supabase.rpc('save_product', {
+      p_product: { ...record, id: product.id || null },
+      p_images: imagesToSave,
+      p_variants: variantsToSave,
+    })
     if (error) throw error
+
+    // Passo 3: só agora apaga do Storage as fotos que saíram do produto.
+    const removedPaths = previousImages.filter((item) => item.storage_path && !normalizedUrls.includes(item.url)).map((item) => item.storage_path)
+    if (removedPaths.length) {
+      const { error: removeError } = await supabase.storage.from('product-images').remove(removedPaths)
+      if (removeError) console.warn('Não foi possível apagar fotos antigas do produto.', removeError)
+    }
+    return productId
+  } catch (error) {
+    if (uploaded.length) await supabase.storage.from('product-images').remove(uploaded.map((item) => item.storage_path)).catch(() => {})
+    throw error
   }
-  return productId
 }
 
 export async function deleteProduct(productId) {
