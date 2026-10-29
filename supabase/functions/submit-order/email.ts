@@ -50,7 +50,7 @@ function whatsappUrl(phone: string) {
 }
 
 function safeColor(color: string) {
-  return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#176b46'
+  return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#7a4a22'
 }
 
 const font = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"

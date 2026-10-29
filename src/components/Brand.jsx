@@ -8,7 +8,7 @@ export default function Brand({ to = '/', compact = false }) {
       {settings.logo_url
         ? <img className="brand__logo" src={settings.logo_url} alt="" />
         : <span className="brand__mark" aria-hidden="true">F</span>}
-      <span>{settings.name}</span>
+      <span className="brand__name">{settings.name}</span>
     </Link>
   )
 }

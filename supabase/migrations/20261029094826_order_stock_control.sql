@@ -1,7 +1,8 @@
 -- Controle de estoque no pedido: trava as linhas, valida o estoque do produto
 -- (antes só o da variação era validado) e decrementa ao registrar o pedido.
 -- stock NULL = estoque não controlado (nunca bloqueia nem decrementa).
--- Cancelar um pedido não devolve estoque; se quiser isso, é um trigger à parte.
+-- A devolução de estoque ao cancelar fica no trigger orders_sync_stock
+-- (migration 20261029094945_restore_stock_on_cancel.sql).
 
 create or replace function public.create_order(
   p_customer_name text,

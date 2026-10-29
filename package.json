@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "build": "npm run build:app && node scripts/prerender.mjs",
+    "build:app": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-ssr",
     "preview": "vite preview",
     "test": "node --test",
-    "check": "npm run test && npm run build"
+    "check": "npm run test && npm run build:app"
   },
   "dependencies": {
     "@fontsource-variable/nunito": "^5.3.0",

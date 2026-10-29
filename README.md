@@ -25,11 +25,13 @@ npm run dev
 
 Sem preencher o `.env.local`, a aplicação abre em modo de demonstração. O painel em `/admin` também fica disponível para aprovação visual, mas com alterações desabilitadas.
 
-Validação completa do frontend:
+Validação do frontend (testes + build do app e do SSR; funciona também no modo de demonstração):
 
 ```bash
 npm run check
 ```
+
+O `npm run build` completo também gera o HTML pronto das páginas, o sitemap e o `llms.txt` a partir do catálogo real, por isso exige o Supabase configurado no `.env`.
 
 ## Conectar o Supabase
 
@@ -95,7 +97,7 @@ supabase/
 - Configure `ALLOWED_ORIGINS` somente com os domínios autorizados.
 - Teste RLS com usuários anônimo, autenticado comum e administrador.
 - Execute os Security/Performance Advisors do Supabase.
-- Rode `npm audit` e `npm run check`.
+- Rode `npm audit`, `npm run check` e `npm run build`.
 - Configure fallback de SPA no provedor de hospedagem para que `/produto/*`, `/pedido`, `/sobre` e `/admin` retornem `index.html`.
 
 ## Publicação em hospedagem estática ou cPanel
