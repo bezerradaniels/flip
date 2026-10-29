@@ -2,6 +2,7 @@ import { Check, Plus, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getCartItemKey, useStore } from '../context/StoreContext.jsx'
 import { getProductPrice, money } from '../utils/format.js'
+import ProductImage from './ProductImage.jsx'
 
 export default function ProductCard({ product }) {
   const { cart, coupon, addToCart, getDisplayPrice } = useStore()
@@ -17,7 +18,7 @@ export default function ProductCard({ product }) {
     <article className="product-card">
       <Link className="product-card__image" to={`/produto/${product.slug}`}>
         {product.is_featured && <span className="product-card__tag">Destaque</span>}
-        <img src={product.images?.[0]?.url} alt={product.images?.[0]?.alt_text || product.name} loading="lazy" />
+        <ProductImage src={product.images?.[0]?.url} alt={product.images?.[0]?.alt_text || product.name} loading="lazy" />
       </Link>
       <div className="product-card__body">
         <span className="eyebrow">{product.category.name}</span>

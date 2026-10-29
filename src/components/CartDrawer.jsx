@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../context/StoreContext.jsx'
 import { money } from '../utils/format.js'
+import ProductImage from './ProductImage.jsx'
 
 export default function CartDrawer() {
   const { cart, cartCount, cartSubtotal, cartDiscount, cartTotal, coupon, getDisplayPrice, drawerOpen, setDrawerOpen, updateCart, removeFromCart } = useStore()
@@ -35,7 +36,7 @@ export default function CartDrawer() {
             <div className="cart-list">
               {cart.map((item) => (
                 <div className="cart-item" key={item.key}>
-                  <img src={item.image} alt="" />
+                  <ProductImage src={item.image} />
                   <div className="cart-item__info">
                     <strong>{item.name}</strong>
                     {item.variantName && <small>{item.variantName}</small>}

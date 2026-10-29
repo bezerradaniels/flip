@@ -15,6 +15,7 @@ import { demoStore } from '../data/demo.js'
 import { formatPhone, money, nationalPhoneDigits, onlyDigits, slugify, toWhatsAppNumber, validatePhone } from '../utils/format.js'
 import { cleanFaqs } from '../utils/faqs.js'
 import { buildVariantCombinations, countVariantCombinations, getVariantCombinationKey, getVariationGroups, MAX_VARIANT_COMBINATIONS, VARIATION_PRESETS } from '../utils/variants.js'
+import ProductImage from '../components/ProductImage.jsx'
 
 const emptyProduct = {
   id: null, name: '', slug: '', category_id: '',
@@ -399,7 +400,7 @@ function ProductsTab({ data, reload, demo }) {
         {demo && <div className="notice">Conecte o Supabase para liberar as operações de cadastro.</div>}
         <div className="admin-table admin-table--products">
           <div className="admin-table__head"><span>Produto</span><span>Categoria</span><span>Preço</span><span>Status</span><span /></div>
-          {data.products.map((product) => <div key={product.id}><span className="admin-product"><img src={product.images?.[0]?.url} alt="" /><b>{product.name}</b></span><span>{product.category.name}</span><span>{money(product.price)}</span><span><i className={`status-dot ${product.is_active ? 'is-active' : ''}`} />{product.is_active ? 'Ativo' : 'Oculto'}</span><span className="row-actions"><button disabled={demo} onClick={() => setEditing(product)} aria-label={`Editar ${product.name}`}><Edit3 size={16} /></button><button disabled={demo} onClick={() => remove(product)} aria-label={`Excluir ${product.name}`}><Trash2 size={16} /></button></span></div>)}
+          {data.products.map((product) => <div key={product.id}><span className="admin-product"><ProductImage src={product.images?.[0]?.url} /><b>{product.name}</b></span><span>{product.category.name}</span><span>{money(product.price)}</span><span><i className={`status-dot ${product.is_active ? 'is-active' : ''}`} />{product.is_active ? 'Ativo' : 'Oculto'}</span><span className="row-actions"><button disabled={demo} onClick={() => setEditing(product)} aria-label={`Editar ${product.name}`}><Edit3 size={16} /></button><button disabled={demo} onClick={() => remove(product)} aria-label={`Excluir ${product.name}`}><Trash2 size={16} /></button></span></div>)}
         </div>
       </section>
       <section className="admin-card">
