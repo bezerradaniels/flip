@@ -65,7 +65,13 @@ export default {
         p_note: payload.note?.trim() || null,
         p_items: items,
       })
-      if (orderError) return json({ error: orderError.message }, 400, origin)
+      if (orderError) {
+        // P0001 = raise exception de create_order: mensagem pensada para o cliente.
+        // Qualquer outro erro (UUID inválido, falha do banco) fica só no log.
+        if (orderError.code === 'P0001') return json({ error: orderError.message }, 400, origin)
+        console.error('create_order failed', orderError)
+        return json({ error: 'Não foi possível registrar o pedido. Revise a sacolinha e tente novamente.' }, 400, origin)
+      }
 
       let notificationSent = false
       const resendKey = Deno.env.get('RESEND_API_KEY')
