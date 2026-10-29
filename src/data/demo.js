@@ -23,7 +23,7 @@ export const demoStore = {
   slogan: 'Seu desejo vira arte.',
   logo_url: flipLogo,
   hero_image_url: '/hero-flip-personalizados.jpg',
-  primary_color: '#176b46',
+  primary_color: '#7a4a22',
   whatsapp: '557798634542',
   phone: '(77) 98634-542',
   email: 'ola@flip.com.br',

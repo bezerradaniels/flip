@@ -101,7 +101,7 @@ export default {
             total: order.total,
             items: order.items,
             storeName: settings?.name || 'Flip',
-            primaryColor: settings?.primary_color || '#176b46',
+            primaryColor: settings?.primary_color || '#7a4a22',
             logoUrl: settings?.logo_url || null,
             adminUrl: origin ? `${origin}/admin` : null,
           })
