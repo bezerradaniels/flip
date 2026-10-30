@@ -2,6 +2,7 @@ import { demoCategories, demoProducts, demoStore } from '../data/demo.js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import { cleanFaqs } from '../utils/faqs.js'
 import { slugify } from '../utils/format.js'
+import { friendlyError } from '../utils/saveErrors.js'
 import { optimizeImage } from '../utils/images.js'
 import { normalizeProduct, productSelect } from './catalog.js'
 
@@ -58,7 +59,15 @@ function validSlug(slug, name) {
   return value
 }
 
-export async function saveProduct({ product, imageUrls, variants = [], files }) {
+export async function saveProduct(input) {
+  try {
+    return await saveProductRecord(input)
+  } catch (error) {
+    throw friendlyError(error)
+  }
+}
+
+async function saveProductRecord({ product, imageUrls, variants = [], files }) {
   const record = {
     category_id: product.category_id || null,
     name: (product.name || '').trim(), slug: validSlug(product.slug, product.name),
@@ -158,7 +167,7 @@ export async function saveCategory(category) {
   const result = category.id
     ? await supabase.from('categories').update(record).eq('id', category.id)
     : await supabase.from('categories').insert(record)
-  if (result.error) throw result.error
+  if (result.error) throw friendlyError(result.error)
 }
 
 export async function deleteCategory(categoryId) {

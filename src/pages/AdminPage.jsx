@@ -14,6 +14,7 @@ import {
 import { demoStore } from '../data/demo.js'
 import { formatPhone, money, nationalPhoneDigits, onlyDigits, slugify, toWhatsAppNumber, validatePhone } from '../utils/format.js'
 import { cleanFaqs } from '../utils/faqs.js'
+import { validateProductForm } from '../utils/productForm.js'
 import { buildVariantCombinations, countVariantCombinations, getVariantCombinationKey, getVariationGroups, MAX_VARIANT_COMBINATIONS, VARIATION_PRESETS } from '../utils/variants.js'
 import ProductImage from '../components/ProductImage.jsx'
 
@@ -194,8 +195,10 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError('')
     try {
-      if (form.has_variations && (!form.variationGroups.length || !form.variants.length)) {
-        throw new Error('Selecione ao menos um tipo e uma opção de variação.')
+      const problem = validateProductForm(form)
+      if (problem) {
+        setSection(problem.section)
+        throw new Error(problem.message)
       }
       await saveProduct({ product: form, imageUrls: form.imageUrls.split('\n'), variants: form.variants, files: form.files })
       onSaved()
