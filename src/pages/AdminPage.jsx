@@ -14,6 +14,7 @@ import {
 import { demoStore } from '../data/demo.js'
 import { formatPhone, money, nationalPhoneDigits, onlyDigits, slugify, toWhatsAppNumber, validatePhone } from '../utils/format.js'
 import { cleanFaqs } from '../utils/faqs.js'
+import { validateProductForm } from '../utils/productForm.js'
 import { buildVariantCombinations, countVariantCombinations, getVariantCombinationKey, getVariationGroups, MAX_VARIANT_COMBINATIONS, VARIATION_PRESETS } from '../utils/variants.js'
 import ProductImage from '../components/ProductImage.jsx'
 
@@ -82,7 +83,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
     const variationGroups = getVariationGroups(product)
     return {
       ...emptyProduct, ...product, category_id: product.category?.id || '',
-      brand: product.brand || '', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
+      brand: product.brand || '', description: product.description || '', unit: product.unit || 'Unidade', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
       has_variations: product.has_variations || Boolean(product.variants?.length), variation_type: product.variation_type || '',
       unique_price: !product.variants?.some((item) => item.price_override !== null && item.price_override !== undefined),
       weight_kg: product.weight_kg ?? '', height_cm: product.height_cm ?? '', length_cm: product.length_cm ?? '', width_cm: product.width_cm ?? '',
@@ -194,8 +195,10 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError('')
     try {
-      if (form.has_variations && (!form.variationGroups.length || !form.variants.length)) {
-        throw new Error('Selecione ao menos um tipo e uma opção de variação.')
+      const problem = validateProductForm(form)
+      if (problem) {
+        setSection(problem.section)
+        throw new Error(problem.message)
       }
       await saveProduct({ product: form, imageUrls: form.imageUrls.split('\n'), variants: form.variants, files: form.files })
       onSaved()

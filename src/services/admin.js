@@ -1,6 +1,8 @@
 import { demoCategories, demoProducts, demoStore } from '../data/demo.js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import { cleanFaqs } from '../utils/faqs.js'
+import { slugify } from '../utils/format.js'
+import { friendlyError } from '../utils/saveErrors.js'
 import { optimizeImage } from '../utils/images.js'
 import { normalizeProduct, productSelect } from './catalog.js'
 
@@ -49,13 +51,29 @@ const nullableInteger = (value) => {
   return Number.parseInt(value, 10)
 }
 
-export async function saveProduct({ product, imageUrls, variants = [], files }) {
+// O banco só aceita slug em minúsculas, números e hífens. Normaliza o que foi
+// digitado no campo (ou gera a partir do nome, se estiver vazio).
+function validSlug(slug, name) {
+  const value = slugify(slug || '') || slugify(name || '')
+  if (!value) throw new Error('Informe um slug com letras ou números.')
+  return value
+}
+
+export async function saveProduct(input) {
+  try {
+    return await saveProductRecord(input)
+  } catch (error) {
+    throw friendlyError(error)
+  }
+}
+
+async function saveProductRecord({ product, imageUrls, variants = [], files }) {
   const record = {
     category_id: product.category_id || null,
-    name: product.name.trim(), slug: product.slug.trim(),
+    name: (product.name || '').trim(), slug: validSlug(product.slug, product.name),
     brand: product.brand?.trim() || null,
-    unit: product.unit.trim() || 'Unidade',
-    description: product.description.trim() || null, price: Number(product.price),
+    unit: product.unit?.trim() || 'Unidade',
+    description: product.description?.trim() || null, price: Number(product.price),
     cost_price: nullableNumber(product.cost_price),
     stock: nullableInteger(product.stock),
     has_brand: Boolean(product.brand?.trim()),
@@ -142,14 +160,14 @@ export async function deleteProduct(productId) {
 
 export async function saveCategory(category) {
   const record = {
-    name: category.name.trim(), slug: category.slug.trim(), is_active: category.is_active !== false,
+    name: category.name.trim(), slug: validSlug(category.slug, category.name), is_active: category.is_active !== false,
     ...(category.description !== undefined ? { description: category.description?.trim() || null } : {}),
     ...(category.google_product_category !== undefined ? { google_product_category: category.google_product_category?.trim() || null } : {}),
   }
   const result = category.id
     ? await supabase.from('categories').update(record).eq('id', category.id)
     : await supabase.from('categories').insert(record)
-  if (result.error) throw result.error
+  if (result.error) throw friendlyError(result.error)
 }
 
 export async function deleteCategory(categoryId) {
