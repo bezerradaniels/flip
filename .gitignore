@@ -4,6 +4,7 @@ dist/
 .env.local
 .env.*.local
 supabase/.env
+supabase/.temp/
 .DS_Store
 *.log
 dist-ssr/

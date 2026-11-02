@@ -3,7 +3,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 
 // Campos públicos do catálogo. O preço de custo fica de fora: só o painel o lê.
 const publicProductFields = `
-  id, slug, name, brand, unit, description, price, stock, faqs,
+  id, slug, name, sku, brand, unit, description, price, stock, faqs,
   has_brand, has_variations, variation_type, weight_kg, height_cm, length_cm, width_cm,
   is_featured, is_active, created_at, updated_at,
   category:categories(id, name, slug, is_active, description, google_product_category),
@@ -15,8 +15,11 @@ export const productSelect = `cost_price, ${publicProductFields}`
 
 export function normalizeProduct(product) {
   const category = Array.isArray(product.category) ? product.category[0] : product.category
+  const reference = String(product.reference || product.sku || '').trim()
   return {
     ...product,
+    reference,
+    sku: reference,
     price: Number(product.price),
     faqs: Array.isArray(product.faqs) ? product.faqs : [],
     ...('cost_price' in product ? { cost_price: product.cost_price === null ? null : Number(product.cost_price) } : {}),
@@ -83,4 +86,3 @@ export async function validateCoupon(code) {
   if (data?.error || !data?.coupon) throw new Error(data?.error || 'Cupom inválido ou expirado.')
   return { ...data.coupon, value: Number(data.coupon.value) }
 }
-

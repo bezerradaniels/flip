@@ -19,7 +19,7 @@ import { buildVariantCombinations, countVariantCombinations, getVariantCombinati
 import ProductImage from '../components/ProductImage.jsx'
 
 const emptyProduct = {
-  id: null, name: '', slug: '', category_id: '',
+  id: null, name: '', slug: '', reference: '', category_id: '',
   brand: 'Flip', unit: 'Unidade', description: '', price: '', cost_price: '',
   stock: '', has_variations: false, variation_type: '',
   weight_kg: '', height_cm: '', length_cm: '', width_cm: '',
@@ -83,6 +83,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
     const variationGroups = getVariationGroups(product)
     return {
       ...emptyProduct, ...product, category_id: product.category?.id || '',
+      reference: product.reference || product.sku || '',
       brand: product.brand || '', description: product.description || '', unit: product.unit || 'Unidade', cost_price: product.cost_price ?? '', stock: product.stock ?? '',
       has_variations: product.has_variations || Boolean(product.variants?.length), variation_type: product.variation_type || '',
       unique_price: !product.variants?.some((item) => item.price_override !== null && item.price_override !== undefined),
@@ -212,7 +213,10 @@ function ProductEditor({ product, categories, onCancel, onSaved }) {
         <div className="product-editor-panel">
           {section === 'general' && <div className="admin-form-grid admin-form-grid--general">
             <FormField label="Título"><input required maxLength={160} value={form.name} onChange={change('name')} placeholder="Ex.: Caneca personalizada" /></FormField>
-            <FormField label="Slug"><input required value={form.slug} onChange={change('slug')} /></FormField>
+            <div className="admin-form-row admin-form-row--2">
+              <FormField label="Referência / Código" optional><input value={form.reference} onChange={change('reference')} placeholder="Ex.: CAN-10" maxLength={50} /></FormField>
+              <FormField label="Slug"><input required value={form.slug} onChange={change('slug')} /></FormField>
+            </div>
             <FormField label="Descrição"><textarea value={form.description} onChange={change('description')} placeholder="Explique o produto, possibilidades de personalização, prazo e observações importantes." /></FormField>
             <div className="admin-form-row admin-form-row--3">
               <FormField label="Categoria"><select required value={form.category_id} onChange={change('category_id')}><option value="">Selecione</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
@@ -403,7 +407,7 @@ function ProductsTab({ data, reload, demo }) {
         {demo && <div className="notice">Conecte o Supabase para liberar as operações de cadastro.</div>}
         <div className="admin-table admin-table--products">
           <div className="admin-table__head"><span>Produto</span><span>Categoria</span><span>Preço</span><span>Status</span><span /></div>
-          {data.products.map((product) => <div key={product.id}><span className="admin-product"><ProductImage src={product.images?.[0]?.url} /><b>{product.name}</b></span><span>{product.category.name}</span><span>{money(product.price)}</span><span><i className={`status-dot ${product.is_active ? 'is-active' : ''}`} />{product.is_active ? 'Ativo' : 'Oculto'}</span><span className="row-actions"><button disabled={demo} onClick={() => setEditing(product)} aria-label={`Editar ${product.name}`}><Edit3 size={16} /></button><button disabled={demo} onClick={() => remove(product)} aria-label={`Excluir ${product.name}`}><Trash2 size={16} /></button></span></div>)}
+          {data.products.map((product) => <div key={product.id}><span className="admin-product"><ProductImage src={product.images?.[0]?.url} /><div><b>{product.name}</b>{product.reference && <small style={{ color: 'var(--muted)', display: 'block', fontSize: '11px', fontWeight: 600 }}>Cód: {product.reference}</small>}</div></span><span>{product.category.name}</span><span>{money(product.price)}</span><span><i className={`status-dot ${product.is_active ? 'is-active' : ''}`} />{product.is_active ? 'Ativo' : 'Oculto'}</span><span className="row-actions"><button disabled={demo} onClick={() => setEditing(product)} aria-label={`Editar ${product.name}`}><Edit3 size={16} /></button><button disabled={demo} onClick={() => remove(product)} aria-label={`Excluir ${product.name}`}><Trash2 size={16} /></button></span></div>)}
         </div>
       </section>
       <section className="admin-card">

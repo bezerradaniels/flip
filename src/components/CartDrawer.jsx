@@ -39,6 +39,7 @@ export default function CartDrawer() {
                   <ProductImage src={item.image} />
                   <div className="cart-item__info">
                     <strong>{item.name}</strong>
+                    {item.reference && <small className="cart-item__reference">Cód: {item.reference}</small>}
                     {item.variantName && <small>{item.variantName}</small>}
                     <div className="quantity-control">
                       <button type="button" onClick={() => updateCart(item.key, -1)} aria-label="Diminuir quantidade"><Minus size={14} /></button>

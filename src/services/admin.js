@@ -68,9 +68,12 @@ export async function saveProduct(input) {
 }
 
 async function saveProductRecord({ product, imageUrls, variants = [], files }) {
+  const reference = (product.reference || product.sku || '').trim() || null
   const record = {
     category_id: product.category_id || null,
     name: (product.name || '').trim(), slug: validSlug(product.slug, product.name),
+    reference,
+    sku: reference,
     brand: product.brand?.trim() || null,
     unit: product.unit?.trim() || 'Unidade',
     description: product.description?.trim() || null, price: Number(product.price),

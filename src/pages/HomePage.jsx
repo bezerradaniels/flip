@@ -17,7 +17,7 @@ export default function HomePage() {
     const normalizedTerm = term.trim().toLocaleLowerCase('pt-BR')
     const result = products.filter((product) => {
       const matchesCategory = category === 'todos' || product.category.id === category
-      const searchable = `${product.name} ${product.category.name} ${product.brand || ''}`.toLocaleLowerCase('pt-BR')
+      const searchable = `${product.name} ${product.reference || ''} ${product.category.name} ${product.brand || ''}`.toLocaleLowerCase('pt-BR')
       return matchesCategory && searchable.includes(normalizedTerm)
     })
     return [...result].sort((a, b) => {
@@ -58,7 +58,7 @@ export default function HomePage() {
           <label className="search-box">
             <span className="sr-only">Buscar no catálogo</span>
             <Search size={19} />
-            <input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Buscar no catálogo" />
+            <input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Buscar no catálogo ou código" />
             {term && <button type="button" onClick={() => setTerm('')}>Limpar</button>}
           </label>
           <label className="sort-box">

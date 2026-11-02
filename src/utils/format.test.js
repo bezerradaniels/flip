@@ -30,10 +30,10 @@ test('onlyDigits remove a máscara do WhatsApp', () => {
 test('buildWhatsAppUrl inclui o resumo do pedido sem montar query inválida', () => {
   const url = buildWhatsAppUrl('5577999999999', {
     storeName: 'Flip', customerName: 'Ana', customerPhone: '(77) 99999-9999', total: 20, discount: 0,
-    items: [{ name: 'Copo', variantName: 'Verde', quantity: 2, unitPrice: 10 }],
+    items: [{ name: 'Copo', reference: 'CAN-10', variantName: 'Verde', quantity: 2, unitPrice: 10 }],
   })
   assert.match(url, /^https:\/\/wa\.me\/5577999999999\?text=/)
-  assert.match(decodeURIComponent(url), /2x Copo \(Verde\)/)
+  assert.match(decodeURIComponent(url), /2x Copo \[Cód: CAN-10\] \(Verde\)/)
 })
 
 test('formatPhone aplica a máscara de celular e fixo', () => {

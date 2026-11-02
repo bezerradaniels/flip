@@ -130,6 +130,7 @@ export function StoreProvider({ children, preloaded = null }) {
       productId: product.id,
       slug: product.slug,
       name: product.name,
+      reference: product.reference || null,
       image: product.images?.[0]?.url || '',
       variantId: selectedVariant?.id || null,
       variantName: selectedVariant?.name || null,

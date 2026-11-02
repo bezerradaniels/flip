@@ -37,7 +37,7 @@ export const onlyDigits = (value = '') => String(value).replace(/\D/g, '')
 
 export function buildWhatsAppUrl(whatsapp, order) {
   const lines = order.items.map((item) => (
-    `• ${item.quantity}x ${item.name}${item.variantName ? ` (${item.variantName})` : ''} — ${money(item.unitPrice * item.quantity)}`
+    `• ${item.quantity}x ${item.name}${item.reference ? ` [Cód: ${item.reference}]` : ''}${item.variantName ? ` (${item.variantName})` : ''} — ${money(item.unitPrice * item.quantity)}`
   ))
   const message = [
     `Olá, ${order.storeName || 'Flip'}! Quero enviar este pedido${order.orderId ? ` #${String(order.orderId).slice(0, 8).toUpperCase()}` : ''}:`,

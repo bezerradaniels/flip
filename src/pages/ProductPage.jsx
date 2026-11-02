@@ -82,8 +82,10 @@ export default function ProductPage() {
           <div className="product-detail__summary">
             <span className="eyebrow">{product.category.name}</span>
             <h1>{product.name}</h1>
+            {product.reference && <span className="product-detail__code">Código: {product.reference}</span>}
           </div>
           <div className="product-meta">
+            {product.reference && <span><small>Código / Ref.</small><b>{product.reference}</b></span>}
             <span><small>Marca</small><b>{product.brand || settings.name}</b></span>
             <span><small>Unidade</small><b>{product.unit}</b></span>
           </div>

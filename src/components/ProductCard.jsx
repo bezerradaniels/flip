@@ -24,6 +24,7 @@ export default function ProductCard({ product }) {
       <div className="product-card__body">
         <span className="eyebrow">{product.category.name}</span>
         <Link to={`/produto/${product.slug}`}><h3>{product.name}</h3></Link>
+        {product.reference && <span className="product-card__code">Código: {product.reference}</span>}
         <div className="product-card__price">
           {hasOverride && <small>a partir de</small>}
           {hasCouponDiscount && <del>{money(price)}</del>}

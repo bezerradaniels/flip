@@ -5,6 +5,7 @@ export function friendlyError(error) {
   const has = (part) => text.includes(part)
   let message = null
   if (has('products_slug_key')) message = 'Já existe outro produto com este slug. Altere o campo Slug (ex.: acrescente a cor ou o modelo).'
+  else if (has('products_sku_key') || has('products_reference_key')) message = 'Já existe outro produto com esta referência/código. Escolha um código diferente.'
   else if (has('categories_slug_key')) message = 'Já existe outra categoria com este slug.'
   else if (has('categories_name_key')) message = 'Já existe uma categoria com este nome.'
   else if (has('products_name_check')) message = 'O título do produto precisa ter entre 2 e 160 letras.'
